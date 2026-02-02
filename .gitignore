@@ -1,0 +1,12 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Data artifacts
+data/processed/
+*.pkl
+
+# OS
+.DS_Store
+Thumbs.db
