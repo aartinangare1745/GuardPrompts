@@ -41,4 +41,19 @@ Docker, Render/Railway
                                Mindgard
 
 
-   
+# collecting and sampling data
+Hugging Face
+     ↓
+NeCenT Parquet shards
+     ↓
+Colab
+     ↓
+Read/process efficiently
+     ↓
+Analyze label/type distribution
+     ↓
+Stratified sample
+     ↓
+Save a manageable CSV/Parquet
+     ↓
+Download to your PC
