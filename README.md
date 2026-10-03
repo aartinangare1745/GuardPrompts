@@ -56,6 +56,8 @@ Language explained part of the Deepset problem, not all of it. 31 of 106 Deepset
 3. **Decision boundary uncertainty** some errors may be low-confidence boundary cases rather than confidently wrong predictions (checked via `predict_proba` on the 31 rows).
 **Status:** Documented as a known limitation of pattern/embedding-based classification. Identified as a concrete use case for Stage 4 (LLM-as-judge escalation), since holistic reasoning over a full prompt is better suited to catching masked intent than a fixed embedding vector.
 
+resolution : Checked prediction probabilities on all 31 remaining errors — range 0.14–0.47, mean 0.32. All below the 0.5 threshold, none confidently so. This is boundary uncertainty, not confident misclassification, and supports Stage 4 (LLM-escalation at 0.4–0.6 confidence) as the right fix rather than further retraining on a small (662-row) source.
+
 ## Model selection
 
 **Logistic Regression**, on multilingual embeddings, chosen over Random Forest despite Random Forest's marginally higher ROC-AUC : Logistic Regression has better recall on the attack class (0.90 vs 0.72), and in a security context a missed attack (false negative) is costlier than a false alarm.
