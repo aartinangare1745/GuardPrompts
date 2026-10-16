@@ -73,11 +73,29 @@ Band	Share of prompts escalated	Share of all errors covered
 0.3–0.7	4.5%	33.3%
 0.2–0.8	7.2%	49.4%
 
-Chosen band: 0.2–0.8 : about 7% of traffic sent for a second opinion covers roughly half of the classifier's mistakes. The other half are confident errors that no threshold fixes; documented as a limitation.
+### Issue 10: Does the LLM judge earn its place on uncertain prompts?
 
-Stage 1 (rules) evaluated on its own
+**Issue:** The classifier is least reliable when its confidence falls in the
+0.2-0.8 band. Needed to know whether an LLM judge adds value there.
 
-Regex trigger-phrase filter: 0 false positives on 4,329 benign test prompts, but catches only 39 of 2,781 attacks (1.4%). Precise but narrow; a cheap safety net, not a major contributor.
+**Action:** Sent 497 escalated-band prompts to the judge (Groq, gpt-oss-120b).
+2 of 499 failed (1 rate-limit 429, 1 empty output) and were excluded.
+
+**Result:**
+- Judge accuracy: 0.793 (macro F1 0.78) on this hard subset.
+  Attack class: precision 0.86 / recall 0.81.
+  Benign class: precision 0.69 / recall 0.76.
+- MLP-only on a small sample from the same band:
+- accuracy 0.50, F1 0.62
+  (judge on the same sample: 0.80 / 0.86). 
+
+**Conclusion:** The judge clearly outperforms the classifier in the uncertain
+band, so Stage 4 stays. Weakness: it over-blocks benign prompts slightly
+(benign precision 0.69).
+
+**Limitations:** Free-tier rate limit (8000 tokens/min) means bulk runs
+need backoff.
+
 
 Model selection
 
