@@ -1,32 +1,55 @@
 GuardPrompt : Prompt Injection Detector
-GuardPrompt: Prompt Injection DetectionGuardPrompt is a production-aware, single-layer defense in depth system that sits in front of Large Language Models (LLMs) to detect and block malicious prompts (direct injections, jailbreaks, and encoding evasion) before they reach your primary model.
-System Architecture                      
-                      [ Incoming User Prompt ]
-                                  │
-                                  ▼
-                     ┌─────────────────────────┐
-                     │ Stage 1: Embedder (MLP) │
-                     │  Multilingual MiniLM    │
-                     └────────────┬────────────┘
-                                  │
-                ┌─────────────────┴─────────────────┐
-                │                                   │
-      Score < 0.2 OR > 0.8                     0.2 ≤ Score ≤ 0.8
-        (High Confidence)                       (Uncertainty Band)
-                │                                   │
-                ▼                                   ▼
-     ┌─────────────────────┐             ┌─────────────────────┐
-     │   Fast Decision     │             │ Stage 2: LLM Judge  │
-     │   [Allow / Block]   │             │  (Groq/gpt-oss-120b)│
-     └─────────────────────┘             └──────────┬──────────┘
-                                                    │
-                                                    ▼
-                                         ┌─────────────────────┐
-                                         │   Final Decision    │
-                                         │   [Allow / Block]   │
-                                         └─────────────────────┘
 
-Core PerformanceMetric / ScenarioScore / ResultKey HighlightHeadline F1 (Clean Test Set)0.899Evaluated strictly on non-leaky test rows (cosine distance < 0.95 from training).Unseen Attack Families (Garak)0.839 F1Tested on completely unseen attack topologies with overlapping-window chunking.Stage 2 Escalation Accuracy79.3%LLM judge resolves edge-case ambiguity where the MLP model falls into the 0.2–0.8 band.Known Jailbreaks (DAN / PromptInject)96%–97.5% RecallCatches the vast majority of standard, high-risk jailbreak templates.Key Technical AchievementsIdentified & Corrected Data Poisoning: Uncovered and fixed a ~11% mislabeling issue in public attack datasets (Mindgard) before training.Multilingual Recovery: Resolved severe performance degradation on non-English inputs by upgrading to paraphrase-multilingual-MiniLM-L12-v2.Addressed Context Truncation: Implemented overlapping 80-word chunking to prevent attackers from hiding injections inside long, benign text blocks.Leakage-Aware Evaluation: Separated near-duplicate test samples to ensure reported performance reflects real-world generalization, not memorization.
+> **GuardPrompt** is a production-aware, multi-layer defense system that sits in front of Large Language Models (LLMs) to detect and block malicious prompts (direct injections, jailbreaks, and encoding evasion) before they reach your primary model.
+
+---
+
+##  System Architecture
+
+                  [ Incoming User Prompt ]
+                              │
+                              ▼
+                 ┌─────────────────────────┐
+                 │ Stage 1: Embedder (MLP) │
+                 │  Multilingual MiniLM    │
+                 └────────────┬────────────┘
+                              │
+            ┌─────────────────┴─────────────────┐
+            │                                   │
+  Score < 0.2 OR > 0.8                     0.2 ≤ Score ≤ 0.8
+    (High Confidence)                       (Uncertainty Band)
+            │                                   │
+            ▼                                   ▼
+ ┌─────────────────────┐             ┌─────────────────────┐
+ │   Fast Decision     │             │ Stage 2: LLM Judge  │
+ │   [Allow / Block]   │             │  (Groq/gpt-oss-120b)│
+ └─────────────────────┘             └──────────┬──────────┘
+                                                │
+                                                ▼
+                                     ┌─────────────────────┐
+                                     │   Final Decision    │
+                                     │   [Allow / Block]   │
+                                     └─────────────────────┘
+
+--
+
+## 📊 Core Performance
+
+| Metric / Scenario | Score / Result | Key Highlight |
+| :--- | :--- | :--- |
+| **Headline F1 (Clean Test Set)** | **0.899** | Evaluated strictly on non-leaky test rows (cosine distance `< 0.95` from training). |
+| **Unseen Attack Families (Garak)** | **0.839 F1** | Tested on completely unseen attack topologies with overlapping-window chunking. |
+| **Stage 2 Escalation Accuracy** | **79.3%** | LLM judge resolves edge-case ambiguity where the MLP model falls into the `0.2–0.8` band. |
+| **Known Jailbreaks (DAN / PromptInject)** | **96%–97.5% Recall** | Catches the vast majority of standard, high-risk jailbreak templates. |
+
+---
+
+## 🎯 Key Technical Achievements
+
+* **Identified & Corrected Data Poisoning:** Uncovered and fixed a ~11% mislabeling issue in public attack datasets (*Mindgard*) before training.
+* **Multilingual Recovery:** Resolved severe performance degradation on non-English inputs by upgrading to `paraphrase-multilingual-MiniLM-L12-v2`.
+* **Addressed Context Truncation:** Implemented overlapping 80-word chunking to prevent attackers from hiding injections inside long, benign text blocks.
+* **Leakage-Aware Evaluation:** Separated near-duplicate test samples to ensure reported performance reflects real-world generalization, not memorization.
 
 Problem
 
