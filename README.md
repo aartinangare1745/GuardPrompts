@@ -1,6 +1,32 @@
-GuardPrompt : Prompt Injection Detection
+GuardPrompt : Prompt Injection Detector
+GuardPrompt: Prompt Injection DetectionGuardPrompt is a production-aware, single-layer defense in depth system that sits in front of Large Language Models (LLMs) to detect and block malicious prompts (direct injections, jailbreaks, and encoding evasion) before they reach your primary model.
+System Architecture                      
+                      [ Incoming User Prompt ]
+                                  │
+                                  ▼
+                     ┌─────────────────────────┐
+                     │ Stage 1: Embedder (MLP) │
+                     │  Multilingual MiniLM    │
+                     └────────────┬────────────┘
+                                  │
+                ┌─────────────────┴─────────────────┐
+                │                                   │
+      Score < 0.2 OR > 0.8                     0.2 ≤ Score ≤ 0.8
+        (High Confidence)                       (Uncertainty Band)
+                │                                   │
+                ▼                                   ▼
+     ┌─────────────────────┐             ┌─────────────────────┐
+     │   Fast Decision     │             │ Stage 2: LLM Judge  │
+     │   [Allow / Block]   │             │  (Groq/gpt-oss-120b)│
+     └─────────────────────┘             └──────────┬──────────┘
+                                                    │
+                                                    ▼
+                                         ┌─────────────────────┐
+                                         │   Final Decision    │
+                                         │   [Allow / Block]   │
+                                         └─────────────────────┘
 
-A classifier that sits in front of an LLM and flags malicious prompts (direct injection, jailbreaks, and encoding-based evasion) before they reach the model. Built as one layer of a defense-in-depth system, not a standalone solution — no detector, including production tools from Anthropic and OpenAI, claims full coverage against prompt injection.
+Core PerformanceMetric / ScenarioScore / ResultKey HighlightHeadline F1 (Clean Test Set)0.899Evaluated strictly on non-leaky test rows (cosine distance < 0.95 from training).Unseen Attack Families (Garak)0.839 F1Tested on completely unseen attack topologies with overlapping-window chunking.Stage 2 Escalation Accuracy79.3%LLM judge resolves edge-case ambiguity where the MLP model falls into the 0.2–0.8 band.Known Jailbreaks (DAN / PromptInject)96%–97.5% RecallCatches the vast majority of standard, high-risk jailbreak templates.Key Technical AchievementsIdentified & Corrected Data Poisoning: Uncovered and fixed a ~11% mislabeling issue in public attack datasets (Mindgard) before training.Multilingual Recovery: Resolved severe performance degradation on non-English inputs by upgrading to paraphrase-multilingual-MiniLM-L12-v2.Addressed Context Truncation: Implemented overlapping 80-word chunking to prevent attackers from hiding injections inside long, benign text blocks.Leakage-Aware Evaluation: Separated near-duplicate test samples to ensure reported performance reflects real-world generalization, not memorization.
 
 Problem
 
@@ -96,18 +122,38 @@ band, so Stage 4 stays. Weakness: it over-blocks benign prompts slightly
 **Limitations:** Free-tier rate limit (8000 tokens/min) means bulk runs
 need backoff.
 
+Issue 11— Adversarial training round, done properly (Garak + templates)
 
+Found: same two failure patterns (topic-switch false positives, indirect-jailbreak false negatives) needed real volume, not 10 rows.
+Action: pulled 253 real attack examples from Garak’s probe library (no refusal issue, these are static research data) + 150 template-generated benign examples (no LLM needed at all).
+Result: confident-wrong errors dropped 63%→47%, ambiguous-prompt sanity-suite pass rate rose 10%→30%, at the cost of increased error rate specifically on Deepset (16.0%, your smallest/weakest source) and a couple of new false positives on persona-framing prompts. Judged as a net-positive tradeoff and locked in as mlp_v3.
+
+
+#	Issue	Finding	Fix	Status
+12	Model file confusion	The pipeline’s mlp_v3.joblib gave 0.1729 on a prompt the sanity suite scored 0.515, so the Drive file was probably not the adversarial-round model.	Retrained on train_v3 and saved as mlp_v3_rebuilt.joblib.	Fixed
+13	97% test score too good	Train and test come from the same sources, so the score only shows the model fits familiar data.	Tested on held-out Garak families the model had never seen.	Done
+14	Long prompts truncated	MiniLM reads only about 128 tokens, so injections hidden in long text were missed.	Chunking: score overlapping 80-word pieces and take the max.	Fixed
 Model selection
+ 
+Own test set (7,393 rows)	AUC 0.995, accuracy 97%
+Unseen Garak families, no chunking	attack F1 0.773, 26.9% of attacks missed (score <0.2)
+Unseen Garak families, with chunking	attack F1 0.839, 16.7% missed
+latentinjection recall	0.41 → 0.71
+dan / promptinject recall	0.96 / 0.975
+encoding recall	0.65 (unchanged)
+Benign blocked with no second check	2.5% → 3.3%
+Judge on the 497 escalated rows	accuracy 0.793
+
 
 Final: MLP (256 → 64) on paraphrase-multilingual-MiniLM-L12-v2 embeddings. Chosen on clean-subset F1 (0.899 vs 0.807 for Logistic Regression) and consistent wins across all three sources. The earlier preference for Logistic Regression (higher attack recall than Random Forest) no longer applies: the MLP has higher recall as well as higher precision.
 
-Planned defense pipeline (in progress)
-Rule-based pre-filter (built) : regex/keyword match on known trigger phrases; zero false positives, 1.4% attack catch rate (see above)
-ML classifier (built) : MLP on multilingual embeddings; clean-subset F1 0.899
+Planned defense pipeline
+Rule-based pre-filter (built) : regex/keyword match on known trigger phrases; zero false positives, 1.4% attack catch rate .DROPPED
+ML classifier : MLP on multilingual embeddings; clean-subset F1 0.899
 Spotlighting wrapper (planned) : wraps untrusted content in randomized delimiters per Microsoft's spotlighting research; measures whether provenance-tagging improves detection confidence
-LLM-as-judge escalation (next) : for prompts scoring 0.2–0.8; targets the boundary-uncertainty errors found in Issues 6 and 9
+LLM-as-judge escalation : for prompts scoring 0.2–0.8; targets the boundary-uncertainty errors found in Issues 6 and 9
 Decision logging : every prediction logged with confidence and which stage caught it, enabling per-stage precision/recall reporting
-Planned evaluation (not yet run)
+Evaluation 
 Garak (injection/jailbreak probe categories only) : adversarial test set generation, addresses limited training data diversity
 TextAttack : perturbation robustness testing on the trained classifier
 Final comparison: held-out real test set vs. Garak-generated probes vs. TextAttack-perturbed prompts
@@ -118,5 +164,4 @@ About half of the classifier's errors fall outside the 0.2–0.8 escalation band
 Deepset clean test slice is only 80 rows, so per-source numbers there are noisy
 Model hyperparameters were chosen on a validation split from train, but several models were compared against the same test set, so test figures are slightly optimistic
 Deepset's label definition may be broader than "prompt injection" specifically (includes some adversarial/sensitive prompts without injection framing) — a dataset-definition mismatch, not purely a model limitation
-Rule-based pre-filter (Stage 1) is English-only; non-English equivalents of trigger phrases are not yet covered
-No full RL training (as used in Anthropic's production defenses) out of scope for this project's compute budget; an adversarial training loop is planned as a smaller-scale analog
+
