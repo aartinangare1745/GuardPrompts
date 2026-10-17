@@ -16,22 +16,22 @@ GuardPrompt : Prompt Injection Detector
                               │
             ┌─────────────────┴─────────────────┐
             │                                   │
-  Score < 0.2 OR > 0.8                     0.2 ≤ Score ≤ 0.8
-    (High Confidence)                       (Uncertainty Band)
+      Score < 0.2 OR > 0.8                     0.2 ≤ Score ≤ 0.8
+      (High Confidence)                       (Uncertainty Band)
             │                                   │
             ▼                                   ▼
- ┌─────────────────────┐             ┌─────────────────────┐
- │   Fast Decision     │             │ Stage 2: LLM Judge  │
- │   [Allow / Block]   │             │  (Groq/gpt-oss-120b)│
- └─────────────────────┘             └──────────┬──────────┘
-                                                │
-                                                ▼
-                                     ┌─────────────────────┐
-                                     │   Final Decision    │
-                                     │   [Allow / Block]   │
-                                     └─────────────────────┘
-
---
+     ┌─────────────────────┐             ┌─────────────────────┐
+     │   Fast Decision     │             │ Stage 2: LLM Judge  │
+     │   [Allow / Block]   │             │  (Groq/gpt-oss-120b)│
+     └─────────────────────┘             └──────────┬──────────┘
+                                                    │
+                                                    ▼
+                                         ┌─────────────────────┐
+                                         │   Final Decision    │
+                                         │   [Allow / Block]   │
+                                         └─────────────────────┘
+    
+    --
 
 ## 📊 Core Performance
 
