@@ -1,12 +1,5 @@
-# Python
-venv/
+.env
+*.npy
+decisions.csv
+nlogs/
 __pycache__/
-*.pyc
-
-# Data artifacts
-data/processed/
-*.pkl
-
-# OS
-.DS_Store
-Thumbs.db
